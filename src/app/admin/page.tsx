@@ -13,7 +13,11 @@ import {
   ChevronRight,
   Target,
   Zap,
-  Loader2
+  Loader2,
+  Sparkles,
+  AlertTriangle,
+  CheckCircle2,
+  RefreshCw
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,7 +34,7 @@ import {
 import Link from "next/link";
 import type { ComponentType, SVGProps } from "react";
 
-const DATA = [
+const FALLBACK_CHART_DATA = [
   { name: "Mon", revenue: 4000, leads: 24 },
   { name: "Tue", revenue: 3000, leads: 13 },
   { name: "Wed", revenue: 2000, leads: 98 },
@@ -58,8 +62,51 @@ export default function AdminDashboard() {
     createdAt: string;
   };
 
+  type ChartPoint = {
+    name: string;
+    revenue: number;
+    leads: number;
+  };
+
+  type EmployeePerformance = {
+    name: string;
+    leads: number;
+    conversions: number;
+    revenue: number;
+    score: number;
+  };
+
+  type ActivityItem = {
+    event: string;
+    time: string;
+    desc: string;
+    kind: "payment" | "lead" | string;
+  };
+
+  type AiReport = {
+    summary: string;
+    opportunities: string[];
+    risks: string[];
+    recommendedActions: string[];
+    leadSegments: { label: string; count: number; action: string }[];
+    revenueForecast: {
+      next30Days: string;
+      confidence: "Low" | "Medium" | "High";
+      reasoning: string;
+    };
+    aiAvailable: boolean;
+    generatedAt: string;
+    error?: string;
+  };
+
   const [stats, setStats] = useState<Stat[]>([]);
   const [recentLeads, setRecentLeads] = useState<Lead[]>([]);
+  const [chartData, setChartData] = useState<ChartPoint[]>(FALLBACK_CHART_DATA);
+  const [employeePerformance, setEmployeePerformance] = useState<EmployeePerformance[]>([]);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [aiReport, setAiReport] = useState<AiReport | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   const iconMap = {
@@ -80,16 +127,47 @@ export default function AdminDashboard() {
         const statsData = await statsRes.json();
         const leadsData = await leadsRes.json();
 
+        if (!statsRes.ok || !leadsRes.ok) {
+          throw new Error(statsData.error || leadsData.error || "Failed to load admin data");
+        }
+
         setStats(Array.isArray(statsData.stats) ? statsData.stats : []);
+        setChartData(Array.isArray(statsData.chartData) && statsData.chartData.length ? statsData.chartData : FALLBACK_CHART_DATA);
+        setEmployeePerformance(Array.isArray(statsData.employeePerformance) ? statsData.employeePerformance : []);
+        setActivity(Array.isArray(statsData.activity) ? statsData.activity : []);
         setRecentLeads(Array.isArray(leadsData) ? leadsData.slice(0, 5) : []);
       } catch (error) {
         console.error("Failed to fetch admin data:", error);
+        setErrorMessage(error instanceof Error ? error.message : "Failed to fetch admin data");
       } finally {
         setIsLoading(false);
       }
     }
-    fetchStats();
+    queueMicrotask(() => {
+      void fetchStats();
+    });
   }, []);
+
+  const generateAiReport = async () => {
+    setIsAiLoading(true);
+    setErrorMessage("");
+
+    try {
+      const res = await fetch("/api/admin/ai-insights", { method: "POST" });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to generate AI report");
+      }
+
+      setAiReport(data);
+    } catch (error) {
+      console.error("Failed to generate AI report:", error);
+      setErrorMessage(error instanceof Error ? error.message : "Failed to generate AI report");
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -112,11 +190,25 @@ export default function AdminDashboard() {
           <Button variant="outline" className="gap-2">
             <Clock className="w-4 h-4" /> Last 30 Days
           </Button>
-          <Button className="gap-2 bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20">
-            <Zap className="w-4 h-4" /> Generate Report
+          <Button
+            className="gap-2 bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20"
+            onClick={generateAiReport}
+            disabled={isAiLoading}
+          >
+            {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            Generate AI Report
           </Button>
         </div>
       </div>
+
+      {errorMessage && (
+        <Card className="border-red-500/20 bg-red-500/5">
+          <CardContent className="p-4 flex items-center gap-3 text-sm text-red-500">
+            <AlertTriangle className="w-4 h-4" />
+            {errorMessage}
+          </CardContent>
+        </Card>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -163,7 +255,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent className="h-[350px] min-w-0 mt-4">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 720, height: 350 }}>
-              <AreaChart data={DATA}>
+              <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="oklch(var(--primary))" stopOpacity={0.3}/>
@@ -197,6 +289,14 @@ export default function AdminDashboard() {
                   strokeWidth={3}
                   fillOpacity={1} 
                   fill="url(#colorRev)" 
+                />
+                <Area
+                  type="monotone"
+                  dataKey="leads"
+                  stroke="oklch(var(--secondary))"
+                  strokeWidth={2}
+                  fillOpacity={0.18}
+                  fill="url(#colorRev)"
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -246,6 +346,102 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
+      <Card className="border-primary/20 bg-primary/5 backdrop-blur-sm relative overflow-hidden">
+        <div className="absolute right-0 top-0 p-6 opacity-10">
+          <Sparkles className="w-24 h-24 text-primary" />
+        </div>
+        <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-primary/10">
+          <div>
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" /> Gemini Revenue Copilot
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              AI-generated operations, conversion, and payment recommendations from live admin data.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" className="gap-2" onClick={generateAiReport} disabled={isAiLoading}>
+            {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Refresh
+          </Button>
+        </CardHeader>
+        <CardContent className="p-6">
+          {aiReport ? (
+            <div className="grid lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-1 space-y-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge className={aiReport.aiAvailable ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-orange-500/10 text-orange-500 border-orange-500/20"}>
+                      {aiReport.aiAvailable ? "Gemini Live" : "Fallback Mode"}
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(aiReport.generatedAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-sm leading-relaxed text-muted-foreground">{aiReport.summary}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-background/50 p-4">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">30-Day Forecast</p>
+                  <div className="text-2xl font-black text-primary">{aiReport.revenueForecast.next30Days}</div>
+                  <p className="text-xs text-muted-foreground mt-2">{aiReport.revenueForecast.reasoning}</p>
+                  <Badge variant="outline" className="mt-3 text-[10px]">Confidence: {aiReport.revenueForecast.confidence}</Badge>
+                </div>
+              </div>
+              <div className="lg:col-span-2 grid md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="text-sm font-bold mb-3 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-green-500" /> Opportunities
+                  </h4>
+                  <div className="space-y-2">
+                    {aiReport.opportunities.map((item) => (
+                      <div key={item} className="rounded-lg border border-border bg-background/50 p-3 text-xs text-muted-foreground">
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold mb-3 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-orange-500" /> Risks
+                  </h4>
+                  <div className="space-y-2">
+                    {aiReport.risks.map((item) => (
+                      <div key={item} className="rounded-lg border border-border bg-background/50 p-3 text-xs text-muted-foreground">
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="md:col-span-2">
+                  <h4 className="text-sm font-bold mb-3 flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-primary" /> Next 48 Hours
+                  </h4>
+                  <div className="grid md:grid-cols-2 gap-2">
+                    {aiReport.recommendedActions.map((item, index) => (
+                      <div key={item} className="rounded-lg border border-border bg-background/50 p-3 text-xs text-muted-foreground">
+                        <span className="font-black text-primary mr-2">{index + 1}.</span>{item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <p className="font-bold">Generate a live AI operating report</p>
+                <p className="text-sm text-muted-foreground">
+                  Gemini will analyze lead stages, payment outcomes, employee assignment, and revenue data.
+                </p>
+              </div>
+              <Button className="gap-2" onClick={generateAiReport} disabled={isAiLoading}>
+                {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                Run Gemini Analysis
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Performance & Activity */}
       <div className="grid lg:grid-cols-2 gap-8 pb-12">
         <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
@@ -256,21 +452,26 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
              <div className="space-y-4">
-                {[
+                {(employeePerformance.length ? employeePerformance : [
                   { name: "Rahul Sharma", deals: 42, revenue: "₹8.4L", score: 98 },
                   { name: "Priya Verma", deals: 38, revenue: "₹7.1L", score: 95 },
                   { name: "Amit Kumar", deals: 31, revenue: "₹6.2L", score: 88 },
-                ].map((emp, i) => (
+                ]).map((emp, i) => (
                   <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-border bg-background/50">
                     <div className="flex items-center gap-3">
                       <div className="text-lg font-black text-muted-foreground/30">#0{i+1}</div>
                       <div>
                         <h4 className="text-sm font-bold">{emp.name}</h4>
-                        <p className="text-xs text-muted-foreground">{emp.deals} Conversions</p>
+                        <p className="text-xs text-muted-foreground">
+                          {"conversions" in emp ? emp.conversions : emp.deals} conversions
+                          {"leads" in emp ? ` · ${emp.leads} leads` : ""}
+                        </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-black text-primary">{emp.revenue}</div>
+                      <div className="text-sm font-black text-primary">
+                        {typeof emp.revenue === "number" ? `₹${(emp.revenue / 100000).toFixed(1)}L` : emp.revenue}
+                      </div>
                       <div className="text-xs font-bold text-green-500">{emp.score} pts</div>
                     </div>
                   </div>
@@ -287,14 +488,18 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              {[
+              {(activity.length ? activity : [
                 { event: "New Payment Received", time: "2 mins ago", desc: "Order #RZP-9082 via UPI", icon: CreditCard, color: "text-green-500" },
                 { event: "New Lead Generated", time: "15 mins ago", desc: "Anish Kumar from Instagram Ads", icon: Target, color: "text-primary" },
                 { event: "Support Ticket Resolved", time: "1 hour ago", desc: "Fixed login issue for User #882", icon:Zap, color: "text-orange-500" },
-              ].map((activity, i) => (
+              ]).map((activity, i) => {
+                const Icon = "kind" in activity && activity.kind === "payment" ? CreditCard : Target;
+                const color = "kind" in activity && activity.kind === "payment" ? "text-green-500" : "text-primary";
+
+                return (
                 <div key={i} className="flex gap-4">
                   <div className={`w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center flex-shrink-0`}>
-                    <activity.icon className={`w-4 h-4 ${activity.color}`} />
+                    <Icon className={`w-4 h-4 ${"color" in activity ? activity.color : color}`} />
                   </div>
                   <div>
                     <h4 className="text-sm font-bold">{activity.event}</h4>
@@ -302,7 +507,7 @@ export default function AdminDashboard() {
                     <span className="text-[10px] font-semibold text-muted-foreground/60">{activity.time}</span>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           </CardContent>
         </Card>

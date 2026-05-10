@@ -145,6 +145,8 @@ export interface ILead extends Document {
   source: string;
   assignedTo?: string; // Employee ID or Name
   internshipId?: mongoose.Types.ObjectId;
+  applicationId?: mongoose.Types.ObjectId;
+  paymentId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -162,6 +164,8 @@ const LeadSchema = new Schema<ILead>({
   source: { type: String, default: 'Direct' },
   assignedTo: String,
   internshipId: { type: Schema.Types.ObjectId, ref: 'Internship' },
+  applicationId: { type: Schema.Types.ObjectId, ref: 'Application' },
+  paymentId: { type: Schema.Types.ObjectId, ref: 'Payment' },
 }, { timestamps: true });
 
 export const Lead = mongoose.models.Lead || mongoose.model<ILead>('Lead', LeadSchema);

@@ -24,8 +24,19 @@ import { Badge } from "@/components/ui/badge";
 
 const WEEK_AGO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
+type AdminUser = {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+  profileImage?: string;
+  xpPoints?: number;
+  createdAt: string;
+};
+
 export default function UsersPage() {
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
 
@@ -33,8 +44,13 @@ export default function UsersPage() {
     setIsLoading(true);
     try {
       const res = await fetch("/api/admin/users");
-      const data = await res.json();
-      setUsers(data);
+      const data: unknown = await res.json();
+
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error || "Failed to fetch users");
+      }
+
+      setUsers(Array.isArray(data) ? data as AdminUser[] : []);
     } catch (error) {
       console.error("Failed to fetch users:", error);
     } finally {
@@ -49,10 +65,32 @@ export default function UsersPage() {
   }, []);
 
   const filteredUsers = users.filter(u => 
-    u.firstName.toLowerCase().includes(search.toLowerCase()) || 
-    u.lastName.toLowerCase().includes(search.toLowerCase()) || 
-    u.email.toLowerCase().includes(search.toLowerCase())
+    (u.firstName || "").toLowerCase().includes(search.toLowerCase()) || 
+    (u.lastName || "").toLowerCase().includes(search.toLowerCase()) || 
+    (u.email || "").toLowerCase().includes(search.toLowerCase())
   );
+
+  const exportUsers = () => {
+    const header = ["First Name", "Last Name", "Email", "Role", "XP Points", "Joined"];
+    const rows = filteredUsers.map((user) => [
+      user.firstName,
+      user.lastName,
+      user.email,
+      user.role,
+      user.xpPoints || 0,
+      new Date(user.createdAt).toLocaleString(),
+    ]);
+    const csv = [header, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "admin-users.csv";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-8">
@@ -66,7 +104,7 @@ export default function UsersPage() {
           <Button variant="outline" size="icon" onClick={fetchUsers} disabled={isLoading}>
             <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
           </Button>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={exportUsers} disabled={!filteredUsers.length}>
             <Users className="w-4 h-4" /> Export Users
           </Button>
           <Button className="gap-2 bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20">
@@ -141,7 +179,7 @@ export default function UsersPage() {
                               {user.profileImage ? (
                                 <img src={user.profileImage} alt="" className="w-full h-full object-cover" />
                               ) : (
-                                `${user.firstName[0]}${user.lastName[0]}`
+                                `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`
                               )}
                           </div>
                           <div>

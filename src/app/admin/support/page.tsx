@@ -44,6 +44,11 @@ const STATUS_CONFIG: any = {
 
 export default function SupportPage() {
   const [search, setSearch] = useState("");
+  const filteredTickets = TICKETS_DATA.filter((ticket) =>
+    ticket.id.toLowerCase().includes(search.toLowerCase()) ||
+    ticket.user.toLowerCase().includes(search.toLowerCase()) ||
+    ticket.issue.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="space-y-8">
@@ -119,7 +124,7 @@ export default function SupportPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {TICKETS_DATA.map((t) => {
+              {filteredTickets.map((t) => {
                 const StatusIcon = STATUS_CONFIG[t.status].icon;
                 return (
                   <tr key={t.id} className="hover:bg-accent/50 transition-colors group cursor-pointer">
@@ -153,6 +158,13 @@ export default function SupportPage() {
                   </tr>
                 );
               })}
+              {filteredTickets.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-muted-foreground italic">
+                    No tickets match your search.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

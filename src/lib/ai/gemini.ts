@@ -1,14 +1,46 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY as string);
 const DEFAULT_MODEL = 'gemini-1.5-flash'; // Optimized for speed and JSON
+let cachedModel: ReturnType<GoogleGenerativeAI["getGenerativeModel"]> | null = null;
+
+function getGeminiModel() {
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY is not configured');
+  }
+
+  if (!cachedModel) {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    cachedModel = genAI.getGenerativeModel({
+      model: process.env.GEMINI_MODEL || DEFAULT_MODEL,
+    });
+  }
+
+  return cachedModel;
+}
+
+function parseJsonResponse<T>(responseText: string): T {
+  const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+  const jsonStart = Math.min(
+    ...['{', '[']
+      .map((token) => cleanText.indexOf(token))
+      .filter((index) => index >= 0)
+  );
+  const jsonEnd = Math.max(cleanText.lastIndexOf('}'), cleanText.lastIndexOf(']'));
+  const json = jsonStart >= 0 && jsonEnd >= jsonStart
+    ? cleanText.slice(jsonStart, jsonEnd + 1)
+    : cleanText;
+
+  return JSON.parse(json) as T;
+}
 
 /**
  * Analyzes a resume string and returns structured JSON feedback including ATS score and missing skills.
  */
 export async function analyzeResume(resumeText: string, targetJobDescription?: string) {
   try {
-    const model = genAI.getGenerativeModel({ model: DEFAULT_MODEL });
+    const model = getGeminiModel();
     const prompt = `
       Act as a senior technical recruiter and ATS (Applicant Tracking System) expert.
       Analyze the following resume text.
@@ -31,8 +63,13 @@ export async function analyzeResume(resumeText: string, targetJobDescription?: s
     const response = await result.response;
     const responseText = response.text();
     
-    const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(cleanJson);
+    return parseJsonResponse<{
+      atsScore: number;
+      strengths: string[];
+      weaknesses: string[];
+      missingSkills: string[];
+      recommendations: string[];
+    }>(responseText);
   } catch (error) {
     console.error('Error in analyzeResume:', error);
     throw new Error('Failed to analyze resume via Gemini API');
@@ -44,7 +81,7 @@ export async function analyzeResume(resumeText: string, targetJobDescription?: s
  */
 export async function fixResume(resumeText: string, targetJobDescription: string) {
     try {
-      const model = genAI.getGenerativeModel({ model: DEFAULT_MODEL });
+      const model = getGeminiModel();
       const prompt = `
         You are an expert resume writer. Rewrite the following resume sections to be highly impactful, 
         using action verbs and quantifying achievements. Optimize it specifically for this Job Description.
@@ -64,8 +101,11 @@ export async function fixResume(resumeText: string, targetJobDescription: string
       const response = await result.response;
       const responseText = response.text();
       
-      const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-      return JSON.parse(cleanJson);
+      return parseJsonResponse<{
+        optimizedExperience: string;
+        suggestedKeywords: string[];
+        summaryRewrite: string;
+      }>(responseText);
     } catch (error) {
       console.error('Error in fixResume:', error);
       throw new Error('Failed to fix resume');
@@ -77,7 +117,7 @@ export async function fixResume(resumeText: string, targetJobDescription: string
  */
 export async function generateCareerRoadmap(currentSkills: string[], targetRole: string) {
   try {
-    const model = genAI.getGenerativeModel({ model: DEFAULT_MODEL });
+    const model = getGeminiModel();
     const prompt = `
       Create a step-by-step career roadmap for someone aiming to become a ${targetRole}.
       Their current skills are: ${currentSkills.join(', ')}.
@@ -100,8 +140,15 @@ export async function generateCareerRoadmap(currentSkills: string[], targetRole:
     const response = await result.response;
     const responseText = response.text();
     
-    const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(cleanJson);
+    return parseJsonResponse<{
+      estimatedMonthsToTarget: number;
+      phases: {
+        phaseName: string;
+        duration: string;
+        skillsToAcquire: string[];
+        projectIdea: string;
+      }[];
+    }>(responseText);
   } catch (error) {
     console.error('Error in generateCareerRoadmap:', error);
     throw new Error('Failed to generate career roadmap');
@@ -113,7 +160,7 @@ export async function generateCareerRoadmap(currentSkills: string[], targetRole:
  */
 export async function generateQuiz(courseTitle: string, topic: string) {
   try {
-    const model = genAI.getGenerativeModel({ model: DEFAULT_MODEL });
+    const model = getGeminiModel();
     const prompt = `
       You are an expert educator creating a quiz for a course on "${courseTitle}".
       The lesson just completed was about: "${topic}".
@@ -133,8 +180,13 @@ export async function generateQuiz(courseTitle: string, topic: string) {
     const response = await result.response;
     const responseText = response.text();
 
-    const raw = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(raw);
+    return parseJsonResponse<{
+      id: number;
+      question: string;
+      options: string[];
+      correctAnswer: string;
+      explanation: string;
+    }[]>(responseText);
   } catch (error) {
     console.error('Error in generateQuiz:', error);
     throw new Error('Failed to generate quiz');
@@ -153,7 +205,7 @@ export async function generateCertificateContent(
   verificationHash: string
 ) {
   try {
-    const model = genAI.getGenerativeModel({ model: DEFAULT_MODEL });
+    const model = getGeminiModel();
     const prompt = `
       Generate formal completion certificate data for:
       - Student Name: ${studentName}
@@ -180,10 +232,85 @@ export async function generateCertificateContent(
     const response = await result.response;
     const responseText = response.text();
 
-    const raw = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(raw);
+    return parseJsonResponse<{
+      certificateTitle: string;
+      studentName: string;
+      courseTitle: string;
+      completionDate: string;
+      achievement: string;
+      quizScore: string;
+      grade: string;
+      verificationId: string;
+      issuedBy: string;
+    }>(responseText);
   } catch (error) {
     console.error('Error in generateCertificateContent:', error);
     throw new Error('Failed to generate certificate content');
+  }
+}
+
+export type AdminInsightSnapshot = {
+  totals: {
+    users: number;
+    leads: number;
+    successfulPayments: number;
+    applications: number;
+    revenue: number;
+  };
+  leadStatuses: { status: string; count: number }[];
+  paymentStatuses: { status: string; count: number; revenue: number }[];
+  revenueByItemType: { itemType: string; revenue: number; count: number }[];
+  recentLeads: { name: string; status: string; source: string; assignedTo?: string; createdAt?: string }[];
+  recentPayments: { status: string; amount: number; itemType?: string; createdAt?: string }[];
+  employeePerformance: { name: string; leads: number; conversions: number }[];
+};
+
+export type AdminInsightResponse = {
+  summary: string;
+  opportunities: string[];
+  risks: string[];
+  recommendedActions: string[];
+  leadSegments: { label: string; count: number; action: string }[];
+  revenueForecast: {
+    next30Days: string;
+    confidence: 'Low' | 'Medium' | 'High';
+    reasoning: string;
+  };
+};
+
+export async function generateAdminInsights(snapshot: AdminInsightSnapshot) {
+  try {
+    const model = getGeminiModel();
+    const prompt = `
+      You are an expert revenue operations analyst for an Indian edtech/internship platform.
+      Analyze this admin dashboard snapshot and return only JSON. Be specific, operational,
+      and useful for an admin team that manages leads, payments, applications, and employees.
+
+      Snapshot:
+      ${JSON.stringify(snapshot)}
+
+      Return this exact JSON structure:
+      {
+        "summary": "2 sentence executive summary",
+        "opportunities": ["3 concrete growth opportunities"],
+        "risks": ["3 operational or revenue risks"],
+        "recommendedActions": ["5 prioritized admin actions for the next 48 hours"],
+        "leadSegments": [
+          { "label": "segment name", "count": number, "action": "recommended follow-up" }
+        ],
+        "revenueForecast": {
+          "next30Days": "INR amount or range as a string",
+          "confidence": "Low" | "Medium" | "High",
+          "reasoning": "short explanation"
+        }
+      }
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return parseJsonResponse<AdminInsightResponse>(response.text());
+  } catch (error) {
+    console.error('Error in generateAdminInsights:', error);
+    throw new Error(error instanceof Error ? error.message : 'Failed to generate admin insights');
   }
 }

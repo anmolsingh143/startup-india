@@ -45,6 +45,14 @@ type LeadStats = {
   success: number;
 };
 
+type NewLeadForm = {
+  name: string;
+  email: string;
+  phone: string;
+  source: string;
+  assignedTo: string;
+};
+
 const STATUS_COLORS: Record<LeadStatus, string> = {
   "New Lead": "bg-blue-500/10 text-blue-500 border-blue-500/20",
   "Applied": "bg-purple-500/10 text-purple-500 border-purple-500/20",
@@ -57,7 +65,16 @@ const STATUS_COLORS: Record<LeadStatus, string> = {
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newLead, setNewLead] = useState<NewLeadForm>({
+    name: "",
+    email: "",
+    phone: "",
+    source: "Manual Admin Entry",
+    assignedTo: "",
+  });
   const [stats, setStats] = useState<LeadStats>({ new: 0, interested: 0, pending: 0, success: 0 });
 
   const fetchLeads = async () => {
@@ -65,8 +82,11 @@ export default function LeadsPage() {
     setIsLoading(true);
     try {
       const res = await fetch("/api/admin/leads");
-      const data = await res.json() as Lead[];
-      const leadList = Array.isArray(data) ? data : [];
+      const data: unknown = await res.json();
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error || "Failed to fetch leads");
+      }
+      const leadList = Array.isArray(data) ? data as Lead[] : [];
       setLeads(leadList);
       
       // Calculate mini stats
@@ -93,8 +113,74 @@ export default function LeadsPage() {
   const filteredLeads = leads.filter(l => 
     l.name.toLowerCase().includes(search.toLowerCase()) || 
     l.email.toLowerCase().includes(search.toLowerCase()) ||
-    l.phone.includes(search)
+    (l.phone || "").includes(search)
   );
+
+  const exportCsv = () => {
+    const header = ["Name", "Email", "Phone", "Status", "Source", "Assigned To", "Created"];
+    const rows = filteredLeads.map((lead) => [
+      lead.name,
+      lead.email,
+      lead.phone,
+      lead.status,
+      lead.source,
+      lead.assignedTo || "Unassigned",
+      new Date(lead.createdAt).toLocaleString(),
+    ]);
+    const csv = [header, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "admin-leads.csv";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const createLead = async () => {
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/admin/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newLead),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create lead");
+      }
+
+      setShowAddForm(false);
+      setNewLead({ name: "", email: "", phone: "", source: "Manual Admin Entry", assignedTo: "" });
+      await fetchLeads();
+    } catch (error) {
+      console.error("Failed to create lead:", error);
+      alert(error instanceof Error ? error.message : "Failed to create lead");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const assignVisibleLeads = async () => {
+    setIsSaving(true);
+    try {
+      const targets = filteredLeads.filter((lead) => !lead.assignedTo);
+      await Promise.all(targets.map((lead) => fetch("/api/admin/leads", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: lead._id, assignedTo: "Rahul Sharma" }),
+      })));
+      await fetchLeads();
+    } catch (error) {
+      console.error("Failed to assign leads:", error);
+      alert("Failed to assign leads.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -108,14 +194,28 @@ export default function LeadsPage() {
           <Button variant="outline" size="icon" onClick={fetchLeads} disabled={isLoading}>
             <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
           </Button>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={exportCsv} disabled={!filteredLeads.length}>
             <Download className="w-4 h-4" /> Export CSV
           </Button>
-          <Button className="gap-2 bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20">
+          <Button className="gap-2 bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20" onClick={() => setShowAddForm((value) => !value)}>
             <Plus className="w-4 h-4" /> Add New Lead
           </Button>
         </div>
       </div>
+
+      {showAddForm && (
+        <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+          <CardContent className="p-4 grid md:grid-cols-5 gap-3">
+            <Input placeholder="Name" value={newLead.name} onChange={(event) => setNewLead((lead) => ({ ...lead, name: event.target.value }))} />
+            <Input placeholder="Email" value={newLead.email} onChange={(event) => setNewLead((lead) => ({ ...lead, email: event.target.value }))} />
+            <Input placeholder="Phone" value={newLead.phone} onChange={(event) => setNewLead((lead) => ({ ...lead, phone: event.target.value }))} />
+            <Input placeholder="Assigned to" value={newLead.assignedTo} onChange={(event) => setNewLead((lead) => ({ ...lead, assignedTo: event.target.value }))} />
+            <Button onClick={createLead} disabled={isSaving || !newLead.name || !newLead.email || !newLead.phone}>
+              {isSaving ? "Saving..." : "Create Lead"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -151,8 +251,8 @@ export default function LeadsPage() {
               <Button variant="outline" className="gap-2 flex-1 md:flex-none">
                 <Filter className="w-4 h-4" /> Filters
               </Button>
-              <Button variant="outline" className="gap-2 flex-1 md:flex-none">
-                <Target className="w-4 h-4" /> Assign
+              <Button variant="outline" className="gap-2 flex-1 md:flex-none" onClick={assignVisibleLeads} disabled={isSaving || !filteredLeads.some((lead) => !lead.assignedTo)}>
+                <Target className="w-4 h-4" /> Assign Unowned
               </Button>
             </div>
           </div>

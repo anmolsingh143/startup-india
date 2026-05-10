@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import type { ComponentType, SVGProps } from "react";
 import { motion } from "framer-motion";
 import { 
   CreditCard, 
@@ -26,7 +27,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
-const STATUS_CONFIG: any = {
+type PaymentStatus = "Successful" | "Pending" | "Created" | "Failed" | "Refunded";
+
+type PaymentRecord = {
+  _id: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  amount: number;
+  status: PaymentStatus;
+  itemType?: string;
+  itemId?: string;
+  createdAt: string;
+};
+
+const STATUS_CONFIG: Record<PaymentStatus, { color: string; bg: string; border: string; icon: ComponentType<SVGProps<SVGSVGElement>> }> = {
   "Successful": { color: "text-green-500", bg: "bg-green-500/10", border: "border-green-500/20", icon: CheckCircle2 },
   "Pending": { color: "text-yellow-500", bg: "bg-yellow-500/10", border: "border-yellow-500/20", icon: Clock },
   "Created": { color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/20", icon: ShieldCheck },
@@ -35,7 +49,7 @@ const STATUS_CONFIG: any = {
 };
 
 export default function PaymentsPage() {
-  const [payments, setPayments] = useState<any[]>([]);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [revenue, setRevenue] = useState(0);
@@ -44,12 +58,18 @@ export default function PaymentsPage() {
     setIsLoading(true);
     try {
       const res = await fetch("/api/admin/payments");
-      const data = await res.json();
-      setPayments(data);
+      const data: unknown = await res.json();
+
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error || "Failed to fetch payments");
+      }
+
+      const paymentList = Array.isArray(data) ? data as PaymentRecord[] : [];
+      setPayments(paymentList);
       
-      const total = data
-        .filter((p: any) => p.status === "Successful")
-        .reduce((acc: number, curr: any) => acc + curr.amount, 0);
+      const total = paymentList
+        .filter((p) => p.status === "Successful")
+        .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
       setRevenue(total);
     } catch (error) {
       console.error("Failed to fetch payments:", error);
@@ -65,9 +85,31 @@ export default function PaymentsPage() {
   }, []);
 
   const filteredPayments = payments.filter(p => 
-    p.razorpayOrderId.toLowerCase().includes(search.toLowerCase()) || 
+    (p.razorpayOrderId || "").toLowerCase().includes(search.toLowerCase()) || 
     (p.razorpayPaymentId && p.razorpayPaymentId.toLowerCase().includes(search.toLowerCase()))
   );
+
+  const exportCsv = () => {
+    const header = ["Order ID", "Razorpay ID", "Item", "Amount", "Status", "Date"];
+    const rows = filteredPayments.map((payment) => [
+      payment.razorpayOrderId || "",
+      payment.razorpayPaymentId || "",
+      payment.itemType || "",
+      payment.amount,
+      payment.status,
+      new Date(payment.createdAt).toLocaleString(),
+    ]);
+    const csv = [header, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "admin-payments.csv";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-8">
@@ -81,7 +123,7 @@ export default function PaymentsPage() {
           <Button variant="outline" size="icon" onClick={fetchPayments} disabled={isLoading}>
             <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
           </Button>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={exportCsv} disabled={!filteredPayments.length}>
             <Download className="w-4 h-4" /> Reports
           </Button>
           <Button className="gap-2 bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20">
@@ -171,10 +213,11 @@ export default function PaymentsPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {filteredPayments.length > 0 ? filteredPayments.map((pay) => {
-                  const StatusIcon = STATUS_CONFIG[pay.status]?.icon || ShieldCheck;
+                  const statusConfig = STATUS_CONFIG[pay.status] || STATUS_CONFIG.Created;
+                  const StatusIcon = statusConfig.icon;
                   return (
                     <tr key={pay._id} className="hover:bg-accent/50 transition-colors group">
-                      <td className="p-4 font-bold text-sm text-primary truncate max-w-[150px]">{pay.razorpayOrderId}</td>
+                      <td className="p-4 font-bold text-sm text-primary truncate max-w-[150px]">{pay.razorpayOrderId || "N/A"}</td>
                       <td className="p-4">
                         <div>
                           <div className="font-bold text-sm">{pay.itemType}</div>
@@ -183,7 +226,7 @@ export default function PaymentsPage() {
                       </td>
                       <td className="p-4 font-black text-sm">₹{pay.amount.toLocaleString()}</td>
                       <td className="p-4">
-                        <Badge className={`text-[10px] gap-1 px-2 py-0.5 ${STATUS_CONFIG[pay.status]?.bg || "bg-muted"} ${STATUS_CONFIG[pay.status]?.color || "text-muted-foreground"} border ${STATUS_CONFIG[pay.status]?.border || "border-border"}`}>
+                        <Badge className={`text-[10px] gap-1 px-2 py-0.5 ${statusConfig.bg} ${statusConfig.color} border ${statusConfig.border}`}>
                           <StatusIcon className="w-3 h-3" /> {pay.status}
                         </Badge>
                       </td>

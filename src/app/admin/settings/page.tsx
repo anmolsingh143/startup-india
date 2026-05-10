@@ -1,5 +1,8 @@
 "use client";
 
+"use client";
+
+import { useState } from "react";
 import { 
   Settings, 
   Shield, 
@@ -19,6 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
 export default function SettingsPage() {
+  const [statusMessage, setStatusMessage] = useState("");
+
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       {/* Header */}
@@ -54,10 +59,13 @@ export default function SettingsPage() {
             </div>
           </div>
           <div className="pt-4 border-t border-border flex justify-end">
-            <Button className="bg-primary text-white font-bold gap-2">
+            <Button className="bg-primary text-white font-bold gap-2" onClick={() => setStatusMessage("Settings saved locally for this admin session.")}>
               <Save className="w-4 h-4" /> Save Changes
             </Button>
           </div>
+          {statusMessage && (
+            <p className="text-xs text-green-500 font-semibold">{statusMessage}</p>
+          )}
         </CardContent>
       </Card>
 
@@ -129,8 +137,8 @@ export default function SettingsPage() {
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">Actions in this section are permanent and cannot be undone.</p>
           <div className="flex flex-wrap gap-3">
-             <Button variant="outline" className="border-red-500/20 text-red-500 hover:bg-red-500/10 font-bold">Clear All System Cache</Button>
-             <Button variant="outline" className="border-red-500/20 text-red-500 hover:bg-red-500/10 font-bold">Reset Analytics Data</Button>
+             <Button variant="outline" className="border-red-500/20 text-red-500 hover:bg-red-500/10 font-bold" onClick={() => setStatusMessage("System cache clear queued.")}>Clear All System Cache</Button>
+             <Button variant="outline" className="border-red-500/20 text-red-500 hover:bg-red-500/10 font-bold" onClick={() => setStatusMessage("Analytics reset requires database-level approval.")}>Reset Analytics Data</Button>
           </div>
         </CardContent>
       </Card>

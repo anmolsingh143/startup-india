@@ -35,6 +35,11 @@ const EMPLOYEES = [
 
 export default function EmployeesPage() {
   const [search, setSearch] = useState("");
+  const filteredEmployees = EMPLOYEES.filter((employee) =>
+    employee.name.toLowerCase().includes(search.toLowerCase()) ||
+    employee.role.toLowerCase().includes(search.toLowerCase()) ||
+    employee.id.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="space-y-8">
@@ -65,7 +70,7 @@ export default function EmployeesPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-border">
-              {EMPLOYEES.sort((a,b) => b.score - a.score).map((emp, i) => (
+              {[...EMPLOYEES].sort((a,b) => b.score - a.score).map((emp, i) => (
                 <div key={emp.id} className="flex items-center justify-between p-5 hover:bg-accent/30 transition-colors group">
                   <div className="flex items-center gap-4">
                     <div className="relative">
@@ -179,7 +184,7 @@ export default function EmployeesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {EMPLOYEES.map((emp) => (
+              {filteredEmployees.map((emp) => (
                 <tr key={emp.id} className="hover:bg-accent/50 transition-colors group">
                   <td className="p-4">
                     <div className="flex items-center gap-3">
@@ -214,6 +219,13 @@ export default function EmployeesPage() {
                   </td>
                 </tr>
               ))}
+              {filteredEmployees.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-muted-foreground italic">
+                    No team members match your search.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
