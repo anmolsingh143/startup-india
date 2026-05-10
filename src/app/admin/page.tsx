@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 import { 
   Users, 
   CreditCard, 
@@ -11,22 +12,22 @@ import {
   Clock,
   ChevronRight,
   Target,
-  Zap
+  Zap,
+  Loader2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
   ResponsiveContainer,
   AreaChart,
-  Area
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip
 } from "recharts";
+import Link from "next/link";
 
 const DATA = [
   { name: "Mon", revenue: 4000, leads: 24 },
@@ -38,21 +39,49 @@ const DATA = [
   { name: "Sun", revenue: 3490, leads: 43 },
 ];
 
-const RECENT_LEADS = [
-  { id: "1", name: "Anish Kumar", email: "anish@example.com", status: "Interested", source: "Facebook", assigned: "Rahul S." },
-  { id: "2", name: "Sanya Malhotra", email: "sanya@example.com", status: "New Lead", source: "Google", assigned: "Priya V." },
-  { id: "3", name: "Rohan Das", email: "rohan@example.com", status: "Converted", source: "Direct", assigned: "Amit K." },
-  { id: "4", name: "Megha Gupta", email: "megha@example.com", status: "Contacted", source: "LinkedIn", assigned: "Rahul S." },
-];
-
-const STATS = [
-  { label: "Total Revenue", value: "₹12.4L", icon: CreditCard, trend: "+12.5%", positive: true, color: "text-primary" },
-  { label: "Total Leads", value: "4,289", icon: Target, trend: "+8.2%", positive: true, color: "text-secondary" },
-  { label: "Conversion Rate", value: "18.4%", icon: TrendingUp, trend: "-2.1%", positive: false, color: "text-green-500" },
-  { label: "Active Employees", value: "42", icon: Users, trend: "+4", positive: true, color: "text-purple-500" },
-];
-
 export default function AdminDashboard() {
+  const [stats, setStats] = useState<any[]>([]);
+  const [recentLeads, setRecentLeads] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const [statsRes, leadsRes] = await Promise.all([
+          fetch("/api/admin/stats"),
+          fetch("/api/admin/leads")
+        ]);
+        
+        const statsData = await statsRes.json();
+        const leadsData = await leadsRes.json();
+
+        setStats(statsData.stats || []);
+        setRecentLeads(leadsData.slice(0, 5) || []);
+      } catch (error) {
+        console.error("Failed to fetch admin data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchStats();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-muted-foreground animate-pulse font-medium">Loading Dashboard Intelligence...</p>
+      </div>
+    );
+  }
+
+  const iconMap: any = {
+    CreditCard,
+    Target,
+    TrendingUp,
+    Users
+  };
+
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
@@ -73,31 +102,34 @@ export default function AdminDashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {STATS.map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-          >
-            <Card className="border-border/50 bg-card/50 backdrop-blur-sm hover:border-primary/30 transition-all group">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`p-2 rounded-lg bg-background border border-border group-hover:border-primary/30 transition-all`}>
-                    <stat.icon className={`w-5 h-5 ${stat.color}`} />
+        {stats.map((stat, i) => {
+          const Icon = iconMap[stat.icon] || Target;
+          return (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+            >
+              <Card className="border-border/50 bg-card/50 backdrop-blur-sm hover:border-primary/30 transition-all group">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className={`p-2 rounded-lg bg-background border border-border group-hover:border-primary/30 transition-all`}>
+                      <Icon className={`w-5 h-5 ${stat.color}`} />
+                    </div>
+                    <div className={`flex items-center gap-1 text-xs font-bold ${stat.positive ? "text-green-500" : "text-red-500"}`}>
+                      {stat.trend} {stat.positive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                    </div>
                   </div>
-                  <div className={`flex items-center gap-1 text-xs font-bold ${stat.positive ? "text-green-500" : "text-red-500"}`}>
-                    {stat.trend} {stat.positive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                  <div>
+                    <p className="text-sm font-semibold text-muted-foreground mb-1">{stat.label}</p>
+                    <h3 className="text-2xl font-black">{stat.value}</h3>
                   </div>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground mb-1">{stat.label}</p>
-                  <h3 className="text-2xl font-black">{stat.value}</h3>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
+                </CardContent>
+              </Card>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Charts Section */}
@@ -160,32 +192,38 @@ export default function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {RECENT_LEADS.map((lead) => (
-              <div key={lead.id} className="flex items-center justify-between group cursor-pointer">
+            {recentLeads.length > 0 ? recentLeads.map((lead) => (
+              <div key={lead._id} className="flex items-center justify-between group cursor-pointer">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-accent border border-border flex items-center justify-center font-bold text-sm">
-                    {lead.name.split(" ").map(n => n[0]).join("")}
+                    {lead.name.split(" ").map((n: any) => n[0]).join("")}
                   </div>
-                  <div>
-                    <h4 className="text-sm font-bold group-hover:text-primary transition-colors">{lead.name}</h4>
-                    <p className="text-xs text-muted-foreground">{lead.source}</p>
+                  <div className="max-w-[120px]">
+                    <h4 className="text-sm font-bold group-hover:text-primary transition-colors truncate">{lead.name}</h4>
+                    <p className="text-xs text-muted-foreground truncate">{lead.source}</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <Badge className={`text-[10px] px-1.5 h-5 ${
-                    lead.status === "Converted" ? "bg-green-500/10 text-green-500 border-green-500/20" :
-                    lead.status === "Interested" ? "bg-primary/10 text-primary border-primary/20" :
+                    lead.status === "Payment Success" ? "bg-green-500/10 text-green-500 border-green-500/20" :
+                    lead.status === "New Lead" ? "bg-primary/10 text-primary border-primary/20" :
                     "bg-muted text-muted-foreground"
                   }`}>
                     {lead.status}
                   </Badge>
-                  <p className="text-[10px] text-muted-foreground mt-1">Assigned to {lead.assigned}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {new Date(lead.createdAt).toLocaleDateString()}
+                  </p>
                 </div>
               </div>
-            ))}
-            <Button variant="ghost" className="w-full text-sm font-bold text-primary gap-2">
-              View All Leads <ChevronRight className="w-4 h-4" />
-            </Button>
+            )) : (
+              <p className="text-sm text-muted-foreground text-center py-8">No leads found yet.</p>
+            )}
+            <Link href="/admin/leads">
+              <Button variant="ghost" className="w-full text-sm font-bold text-primary gap-2 mt-4">
+                View All Leads <ChevronRight className="w-4 h-4" />
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       </div>
@@ -199,7 +237,6 @@ export default function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-             {/* Performance List Placeholder */}
              <div className="space-y-4">
                 {[
                   { name: "Rahul Sharma", deals: 42, revenue: "₹8.4L", score: 98 },

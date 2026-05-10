@@ -180,9 +180,9 @@ export default function Home() {
                   <Button className="bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/25 h-9 text-xs px-5">Register</Button>
                 </SignUpButton>
                 <div className="h-6 w-[1px] bg-border/60 mx-1 hidden lg:block" />
-                <Link href="/employee/sign-in">
+                <Link href="/admin">
                   <Button variant="ghost" size="sm" className="hidden lg:inline-flex text-muted-foreground hover:text-primary font-bold gap-1.5 px-2 h-8 text-[10px] uppercase tracking-wider">
-                    <ShieldCheck className="w-3 h-3" /> Employee Login
+                    <ShieldCheck className="w-3 h-3" /> Admin Panel
                   </Button>
                 </Link>
               </div>

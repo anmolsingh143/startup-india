@@ -35,7 +35,7 @@ const FOOTER_LINKS = [
       { name: "Certifications", href: "/certification" },
       { name: "Internships", href: "/internships" },
       { name: "Contact Us", href: "/contact" },
-      { name: "Employee Login", href: "/employee/sign-in" }
+      { name: "Admin Panel", href: "/admin" }
     ]
   },
   {
