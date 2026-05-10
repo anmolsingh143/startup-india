@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { 
   Search, 
   Filter, 
@@ -15,12 +14,38 @@ import {
   Loader2,
   RefreshCw
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
-const STATUS_COLORS: any = {
+type LeadStatus =
+  | "New Lead"
+  | "Applied"
+  | "Payment Pending"
+  | "Payment Success"
+  | "Enrolled"
+  | "Rejected";
+
+type Lead = {
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+  status: LeadStatus;
+  source: string;
+  assignedTo?: string;
+  createdAt: string;
+};
+
+type LeadStats = {
+  new: number;
+  interested: number;
+  pending: number;
+  success: number;
+};
+
+const STATUS_COLORS: Record<LeadStatus, string> = {
   "New Lead": "bg-blue-500/10 text-blue-500 border-blue-500/20",
   "Applied": "bg-purple-500/10 text-purple-500 border-purple-500/20",
   "Payment Pending": "bg-orange-500/10 text-orange-500 border-orange-500/20",
@@ -30,24 +55,26 @@ const STATUS_COLORS: any = {
 };
 
 export default function LeadsPage() {
-  const [leads, setLeads] = useState<any[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [stats, setStats] = useState<any>({ new: 0, interested: 0, pending: 0, success: 0 });
+  const [stats, setStats] = useState<LeadStats>({ new: 0, interested: 0, pending: 0, success: 0 });
 
   const fetchLeads = async () => {
+    await Promise.resolve();
     setIsLoading(true);
     try {
       const res = await fetch("/api/admin/leads");
-      const data = await res.json();
-      setLeads(data);
+      const data = await res.json() as Lead[];
+      const leadList = Array.isArray(data) ? data : [];
+      setLeads(leadList);
       
       // Calculate mini stats
       const s = {
-        new: data.filter((l: any) => l.status === "New Lead").length,
-        interested: data.filter((l: any) => l.status === "Applied").length,
-        pending: data.filter((l: any) => l.status === "Payment Pending").length,
-        success: data.filter((l: any) => l.status === "Payment Success").length
+        new: leadList.filter((l) => l.status === "New Lead").length,
+        interested: leadList.filter((l) => l.status === "Applied").length,
+        pending: leadList.filter((l) => l.status === "Payment Pending").length,
+        success: leadList.filter((l) => l.status === "Payment Success").length
       };
       setStats(s);
     } catch (error) {
@@ -58,7 +85,9 @@ export default function LeadsPage() {
   };
 
   useEffect(() => {
-    fetchLeads();
+    queueMicrotask(() => {
+      void fetchLeads();
+    });
   }, []);
 
   const filteredLeads = leads.filter(l => 

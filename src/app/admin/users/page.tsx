@@ -22,6 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
+const WEEK_AGO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
 export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,7 +43,9 @@ export default function UsersPage() {
   };
 
   useEffect(() => {
-    fetchUsers();
+    queueMicrotask(() => {
+      void fetchUsers();
+    });
   }, []);
 
   const filteredUsers = users.filter(u => 
@@ -76,7 +80,7 @@ export default function UsersPage() {
         {[
           { label: "Total Users", value: users.length, icon: Users },
           { label: "Students", value: users.filter(u => u.role === "Student").length, icon: UserCheck },
-          { label: "New this week", value: users.filter(u => new Date(u.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length, icon: UserPlus },
+          { label: "New this week", value: users.filter(u => new Date(u.createdAt) > WEEK_AGO).length, icon: UserPlus },
           { label: "Admins/Staff", value: users.filter(u => u.role === "Admin" || u.role === "Employee").length, icon: Shield },
         ].map((s) => (
           <Card key={s.label} className="bg-card/50 border-border/50">

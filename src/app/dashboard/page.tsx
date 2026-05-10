@@ -34,7 +34,8 @@ export default async function DashboardPage() {
   }
 
   // 2. Security: If user is an employee, they should not be here
-  if (user.role === "admin" || user.role === "employee") {
+  const normalizedRole = user.role.toLowerCase();
+  if (normalizedRole === "admin" || normalizedRole === "employee") {
     redirect("/admin");
   }
 

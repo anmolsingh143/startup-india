@@ -6,7 +6,7 @@ import { User, Lead, Payment, Application } from "@/models/CoreModels";
 export async function GET() {
   try {
     const { userId, sessionClaims } = await auth();
-    const role = (sessionClaims?.metadata as any)?.role;
+    const role = ((sessionClaims?.metadata as any)?.role || "").toLowerCase();
     
     // Only allow Admin or Employee roles
     if (!userId || (role !== "admin" && role !== "employee")) {

@@ -19,7 +19,8 @@ const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || "").split(",").filter(Bool
 
 export default clerkMiddleware(async (auth, req) => {
   const { userId, sessionClaims } = await auth();
-  const role = (sessionClaims?.metadata as { role?: string })?.role;
+  const rawRole = (sessionClaims?.metadata as { role?: string })?.role || "";
+  const role = rawRole.toLowerCase();
   const isEmployee = role === "admin" || role === "employee";
 
   // 1. Protect Admin Routes

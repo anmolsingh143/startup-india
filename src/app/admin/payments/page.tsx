@@ -59,7 +59,9 @@ export default function PaymentsPage() {
   };
 
   useEffect(() => {
-    fetchPayments();
+    queueMicrotask(() => {
+      void fetchPayments();
+    });
   }, []);
 
   const filteredPayments = payments.filter(p => 

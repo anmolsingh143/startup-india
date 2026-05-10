@@ -28,6 +28,7 @@ import {
   Tooltip
 } from "recharts";
 import Link from "next/link";
+import type { ComponentType, SVGProps } from "react";
 
 const DATA = [
   { name: "Mon", revenue: 4000, leads: 24 },
@@ -40,9 +41,33 @@ const DATA = [
 ];
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<any[]>([]);
-  const [recentLeads, setRecentLeads] = useState<any[]>([]);
+  type Stat = {
+    icon: keyof typeof iconMap;
+    label: string;
+    value: string;
+    trend: string;
+    positive: boolean;
+    color: string;
+  };
+
+  type Lead = {
+    _id: string;
+    name: string;
+    source: string;
+    status: string;
+    createdAt: string;
+  };
+
+  const [stats, setStats] = useState<Stat[]>([]);
+  const [recentLeads, setRecentLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const iconMap = {
+    CreditCard,
+    Target,
+    TrendingUp,
+    Users
+  } satisfies Record<string, ComponentType<SVGProps<SVGSVGElement>>>;
 
   useEffect(() => {
     async function fetchStats() {
@@ -55,8 +80,8 @@ export default function AdminDashboard() {
         const statsData = await statsRes.json();
         const leadsData = await leadsRes.json();
 
-        setStats(statsData.stats || []);
-        setRecentLeads(leadsData.slice(0, 5) || []);
+        setStats(Array.isArray(statsData.stats) ? statsData.stats : []);
+        setRecentLeads(Array.isArray(leadsData) ? leadsData.slice(0, 5) : []);
       } catch (error) {
         console.error("Failed to fetch admin data:", error);
       } finally {
@@ -75,20 +100,13 @@ export default function AdminDashboard() {
     );
   }
 
-  const iconMap: any = {
-    CreditCard,
-    Target,
-    TrendingUp,
-    Users
-  };
-
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black tracking-tight">Dashboard Overview</h1>
-          <p className="text-muted-foreground">Welcome back, Admin. Here's what's happening today.</p>
+          <p className="text-muted-foreground">Welcome back, Admin. Here&apos;s what&apos;s happening today.</p>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" className="gap-2">
@@ -143,8 +161,8 @@ export default function AdminDashboard() {
               <Badge variant="outline" className="font-bold border-primary/20 text-primary bg-primary/10">LIVE UPDATES</Badge>
             </div>
           </CardHeader>
-          <CardContent className="h-[350px] mt-4">
-            <ResponsiveContainer width="100%" height="100%">
+          <CardContent className="h-[350px] min-w-0 mt-4">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 720, height: 350 }}>
               <AreaChart data={DATA}>
                 <defs>
                   <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
@@ -196,7 +214,7 @@ export default function AdminDashboard() {
               <div key={lead._id} className="flex items-center justify-between group cursor-pointer">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-accent border border-border flex items-center justify-center font-bold text-sm">
-                    {lead.name.split(" ").map((n: any) => n[0]).join("")}
+                    {lead.name.split(" ").map((n) => n[0]).join("")}
                   </div>
                   <div className="max-w-[120px]">
                     <h4 className="text-sm font-bold group-hover:text-primary transition-colors truncate">{lead.name}</h4>

@@ -1,16 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
-  subsets: ["latin"],
-});
 
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -21,6 +10,7 @@ export const metadata: Metadata = {
 
 import { ClerkProvider } from "@clerk/nextjs";
 import { FloatingSupport } from "@/components/support/FloatingSupport";
+import Script from "next/script";
 
 export default function RootLayout({
   children,
@@ -31,9 +21,15 @@ export default function RootLayout({
     <ClerkProvider>
       <html
         lang="en"
-        className={`${inter.variable} ${spaceGrotesk.variable} h-full antialiased`}
+        className="h-full antialiased"
         suppressHydrationWarning
       >
+        <head>
+          <Script
+            src="https://checkout.razorpay.com/v1/checkout.js"
+            strategy="beforeInteractive"
+          />
+        </head>
         <body 
           className="min-h-full flex flex-col font-sans bg-background text-foreground"
           suppressHydrationWarning

@@ -23,7 +23,6 @@ const CATEGORIES = [
 ];
 
 export default function Home() {
-  const [mounted, setMounted] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -63,14 +62,6 @@ export default function Home() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    setVisibleCount(9);
-  }, [activeCategory, searchQuery]);
-
-  useEffect(() => {
-    setMounted(true);
   }, []);
 
   const loadRazorpayScript = () => {
@@ -140,8 +131,6 @@ export default function Home() {
                           course.tools.some(tool => tool.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesCategory && matchesSearch;
   });
-
-  if (!mounted) return null;
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-hidden relative selection:bg-primary/30">
@@ -227,7 +216,10 @@ export default function Home() {
                 placeholder="Search by internship name or technology (e.g., Python, React, Marketing)..." 
                 className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-lg px-4 h-full"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setVisibleCount(9);
+                }}
               />
             </div>
           </div>
@@ -238,7 +230,10 @@ export default function Home() {
                 key={cat.id}
                 variant={activeCategory === cat.id ? "default" : "outline"}
                 className={`rounded-full px-6 transition-all h-12 text-base font-semibold ${activeCategory === cat.id ? "bg-primary text-white shadow-md shadow-primary/20" : "bg-card hover:bg-accent border-border"}`}
-                onClick={() => setActiveCategory(cat.id)}
+                onClick={() => {
+                  setActiveCategory(cat.id);
+                  setVisibleCount(9);
+                }}
               >
                 {cat.label} <span className={`ml-2 text-xs py-1 px-3 rounded-full ${activeCategory === cat.id ? "bg-white/20" : "bg-muted text-muted-foreground"}`}>{cat.count}</span>
               </Button>

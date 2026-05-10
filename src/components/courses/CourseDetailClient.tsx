@@ -17,17 +17,13 @@ interface CourseDetailClientProps { courseId: string; }
 
 export function CourseDetailClient({ courseId }: CourseDetailClientProps) {
   const course = COURSES.find((c) => c.id === courseId);
+  const searchParams = useSearchParams();
   const [hasPaid, setHasPaid] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "roadmap" | "learn">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "roadmap" | "learn">(
+    searchParams.get("success") === "true" ? "learn" : "overview"
+  );
   const [payLoading, setPayLoading] = useState(false);
   const [isVerifying, setIsVerifying] = useState(true);
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    if (searchParams.get("success") === "true") {
-      setActiveTab("learn");
-    }
-  }, [searchParams]);
 
   useEffect(() => {
     const verifyEnrollment = async () => {

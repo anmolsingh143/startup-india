@@ -6,7 +6,7 @@ import { Lead } from "@/models/CoreModels";
 export async function GET() {
   try {
     const { userId, sessionClaims } = await auth();
-    const role = (sessionClaims?.metadata as any)?.role;
+    const role = ((sessionClaims?.metadata as any)?.role || "").toLowerCase();
     
     if (!userId || (role !== "admin" && role !== "employee")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -24,7 +24,7 @@ export async function GET() {
 export async function PATCH(req: Request) {
   try {
     const { userId, sessionClaims } = await auth();
-    const role = (sessionClaims?.metadata as any)?.role;
+    const role = ((sessionClaims?.metadata as any)?.role || "").toLowerCase();
     
     if (!userId || (role !== "admin" && role !== "employee")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });

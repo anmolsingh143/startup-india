@@ -2,13 +2,8 @@
 
 import { motion } from "framer-motion";
 import { 
-  BarChart3, 
   TrendingUp, 
-  Users, 
-  Target, 
   Zap, 
-  ArrowUpRight, 
-  ArrowDownRight,
   Globe,
   Monitor,
   Smartphone,
@@ -19,12 +14,9 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { 
   AreaChart, 
   Area, 
-  BarChart, 
-  Bar, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -96,8 +88,8 @@ export default function AnalyticsPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="h-[400px] pt-8">
-          <ResponsiveContainer width="100%" height="100%">
+        <CardContent className="h-[400px] min-w-0 pt-8">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 800, height: 400 }}>
             <AreaChart data={REVENUE_DATA}>
               <defs>
                 <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
@@ -135,8 +127,8 @@ export default function AnalyticsPage() {
               <PieChartIcon className="w-4 h-4 text-primary" /> Traffic & Lead Sources
             </CardTitle>
           </CardHeader>
-          <CardContent className="h-[300px] flex items-center">
-            <ResponsiveContainer width="100%" height="100%">
+          <CardContent className="h-[300px] min-w-0 flex items-center">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 360, height: 300 }}>
               <PieChart>
                 <Pie
                   data={SOURCE_DATA}

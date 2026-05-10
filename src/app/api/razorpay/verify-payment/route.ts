@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/mongodb";
-import { Lead, Payment } from "@/models/CoreModels";
+import { Lead, Payment, User } from "@/models/CoreModels";
 import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
@@ -31,7 +31,13 @@ export async function POST(req: NextRequest) {
 
     await dbConnect();
 
-    // 2. Save Payment Record
+    // 2. Fetch User Details for Lead
+    const user = await User.findOne({ clerkId: userId });
+    if (!user) {
+      return NextResponse.json({ error: "User not found in database" }, { status: 404 });
+    }
+
+    // 3. Save Payment Record
     const payment = await Payment.create({
       userId,
       courseId: internshipId, 
@@ -41,9 +47,12 @@ export async function POST(req: NextRequest) {
       razorpayPaymentId: razorpay_payment_id
     });
 
-    // 3. Create/Update CRM Lead Entry (Form Pending)
+    // 4. Create CRM Lead Entry
     const lead = await Lead.create({
       clerkId: userId,
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      phone: user.phone || "Not Provided",
       status: 'Payment Success',
       source: 'Internship Enroll Flow',
       internshipId,
@@ -56,8 +65,9 @@ export async function POST(req: NextRequest) {
       leadId: lead._id
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Verification Error:", error);
-    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Internal Server Error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
