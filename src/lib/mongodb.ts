@@ -26,22 +26,25 @@ if (!cached) {
   cached = global.mongoose = { conn: null, promise: null };
 }
 
+// Ensure cached is not undefined for the rest of the file
+const connection = cached!;
+
 async function dbConnect() {
-  if (cached.conn) {
-    return cached.conn;
+  if (connection.conn) {
+    return connection.conn;
   }
 
-  if (!cached.promise) {
+  if (!connection.promise) {
     const opts = {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
+    connection.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
       return mongoose;
     });
   }
-  cached.conn = await cached.promise;
-  return cached.conn;
+  connection.conn = await connection.promise;
+  return connection.conn;
 }
 
 export default dbConnect;
