@@ -1,7 +1,8 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import dbConnect from "@/lib/mongodb";
-import { User, Internship, Payment } from "@/models/CoreModels";
+import { User, Internship } from "@/models/CoreModels";
+import { Payment } from "@/models/AnalyticsModels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Users, CreditCard, ShieldCheck, TrendingUp, BarChart3 } from "lucide-react";

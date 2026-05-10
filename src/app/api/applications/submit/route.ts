@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/mongodb";
-import { Lead, Application, Payment } from "@/models/CoreModels";
+import { Lead, Application, User } from "@/models/CoreModels";
+import { Payment } from "@/models/AnalyticsModels";
 import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
@@ -37,15 +38,21 @@ export async function POST(req: NextRequest) {
     }
 
     await dbConnect();
+    const user = await User.findOne({ clerkId: userId });
 
     // 2. Check if Payment already exists (should be created in verify-payment)
     let payment = await Payment.findOne({ razorpayPaymentId: razorpay_payment_id });
     
     if (!payment) {
+      if (!user) {
+        return NextResponse.json({ error: "User not found in database" }, { status: 404 });
+      }
+
       // Fallback: create if missing
       payment = await Payment.create({
-        userId,
-        courseId: internshipId,
+        userId: user._id,
+        itemType: 'Internship',
+        itemId: String(internshipId),
         amount: 1999,
         status: 'Successful',
         razorpayOrderId: razorpay_order_id,

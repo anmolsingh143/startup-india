@@ -53,7 +53,7 @@ export interface IPayment extends Document {
   currency: string;
   status: 'Created' | 'Successful' | 'Failed' | 'Refunded';
   itemType: 'Course' | 'Subscription' | 'Internship';
-  itemId: mongoose.Types.ObjectId;
+  itemId: string;
 }
 
 const PaymentSchema = new Schema<IPayment>({
@@ -64,7 +64,7 @@ const PaymentSchema = new Schema<IPayment>({
   currency: { type: String, default: 'INR' },
   status: { type: String, enum: ['Created', 'Successful', 'Failed', 'Refunded'], default: 'Created' },
   itemType: { type: String, enum: ['Course', 'Subscription', 'Internship'], required: true },
-  itemId: { type: Schema.Types.ObjectId, required: true }
+  itemId: { type: String, required: true }
 }, { timestamps: true });
 
 export const Payment = mongoose.models.Payment || mongoose.model<IPayment>('Payment', PaymentSchema);

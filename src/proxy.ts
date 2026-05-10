@@ -11,7 +11,7 @@ const isPublicRoute = createRouteMatcher([
   "/career-hub",
   "/certification",
   "/contact",
-  "/api/razorpay/webhook",
+  "/api/webhooks/razorpay",
 ]);
 
 // Admin user IDs - add your Clerk user IDs here

@@ -111,7 +111,7 @@ export const Internship = mongoose.models.Internship || mongoose.model<IInternsh
 // APPLICATION MODEL
 // ----------------------------------------
 export interface IApplication extends Document {
-  studentId: mongoose.Types.ObjectId;
+  studentId: string;
   internshipId: mongoose.Types.ObjectId;
   resumeUrl: string;
   coverLetter?: string;
@@ -120,7 +120,7 @@ export interface IApplication extends Document {
 }
 
 const ApplicationSchema = new Schema<IApplication>({
-  studentId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  studentId: { type: String, required: true, index: true },
   internshipId: { type: Schema.Types.ObjectId, ref: 'Internship', required: true, index: true },
   resumeUrl: { type: String, required: true },
   coverLetter: String,
@@ -132,32 +132,6 @@ const ApplicationSchema = new Schema<IApplication>({
 ApplicationSchema.index({ studentId: 1, internshipId: 1 }, { unique: true });
 
 export const Application = mongoose.models.Application || mongoose.model<IApplication>('Application', ApplicationSchema);
-
-// ----------------------------------------
-// PAYMENT MODEL
-// ----------------------------------------
-export interface IPayment extends Document {
-  userId: mongoose.Types.ObjectId | string;
-  courseId: string;
-  amount: number;
-  currency: string;
-  status: 'Pending' | 'Successful' | 'Failed';
-  razorpayOrderId: string;
-  razorpayPaymentId?: string;
-  createdAt: Date;
-}
-
-const PaymentSchema = new Schema<IPayment>({
-  userId: { type: String, required: true, index: true },
-  courseId: { type: String, required: true },
-  amount: { type: Number, required: true },
-  currency: { type: String, default: 'INR' },
-  status: { type: String, enum: ['Pending', 'Successful', 'Failed'], default: 'Pending' },
-  razorpayOrderId: { type: String, required: true },
-  razorpayPaymentId: String,
-}, { timestamps: true });
-
-export const Payment = mongoose.models.Payment || mongoose.model<IPayment>('Payment', PaymentSchema);
 
 // ----------------------------------------
 // LEAD MODEL (CRM)

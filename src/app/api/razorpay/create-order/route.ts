@@ -18,8 +18,9 @@ export async function POST(req: Request) {
     }
 
     const { amount, currency = "INR", receipt, itemType, itemId } = await req.json();
+    const normalizedItemType = itemType === "InternshipEnrollment" ? "Internship" : itemType;
 
-    if (!amount || !itemType || !itemId) {
+    if (!amount || !normalizedItemType || !itemId) {
       return NextResponse.json({ error: "Missing required payment fields" }, { status: 400 });
     }
 
@@ -42,8 +43,8 @@ export async function POST(req: Request) {
           amount,
           currency,
           status: 'Created',
-          itemType,
-          itemId,
+          itemType: normalizedItemType,
+          itemId: String(itemId),
         });
       }
     } catch (dbError) {

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/mongodb";
-import { Lead, Payment, User } from "@/models/CoreModels";
+import { Lead, User } from "@/models/CoreModels";
+import { Payment } from "@/models/AnalyticsModels";
 import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
@@ -37,27 +38,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found in database" }, { status: 404 });
     }
 
-    // 3. Save Payment Record
-    const payment = await Payment.create({
-      userId,
-      courseId: internshipId, 
-      amount: amount || 1999,
-      status: 'Successful',
-      razorpayOrderId: razorpay_order_id,
-      razorpayPaymentId: razorpay_payment_id
-    });
+    // 3. Update Payment Record
+    const payment = await Payment.findOneAndUpdate(
+      { razorpayOrderId: razorpay_order_id },
+      {
+        userId: user._id,
+        itemType: 'Internship',
+        itemId: String(internshipId),
+        amount: amount || 1999,
+        currency: 'INR',
+        status: 'Successful',
+        razorpayPaymentId: razorpay_payment_id
+      },
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert: true
+      }
+    );
 
-    // 4. Create CRM Lead Entry
-    const lead = await Lead.create({
-      clerkId: userId,
-      name: `${user.firstName} ${user.lastName}`,
-      email: user.email,
-      phone: user.phone || "Not Provided",
-      status: 'Payment Success',
-      source: 'Internship Enroll Flow',
-      internshipId,
-      assignedTo: 'Rahul Sharma'
-    });
+    // 4. Create or update CRM Lead Entry
+    const lead = await Lead.findOneAndUpdate(
+      { clerkId: userId, internshipId },
+      {
+        clerkId: userId,
+        name: `${user.firstName || "Unknown"} ${user.lastName || "User"}`.trim(),
+        email: user.email || "unknown@example.com",
+        phone: user.phone || "Not Provided",
+        status: 'Payment Success',
+        source: 'Internship Enroll Flow',
+        internshipId,
+        assignedTo: 'Rahul Sharma'
+      },
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert: true
+      }
+    );
 
     return NextResponse.json({ 
       success: true, 

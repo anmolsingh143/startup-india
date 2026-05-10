@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/mongodb";
-import { Payment } from "@/models/CoreModels";
+import { Payment } from "@/models/AnalyticsModels";
 
 export async function GET() {
   try {
