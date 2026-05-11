@@ -5,9 +5,16 @@ import dbConnect from "@/lib/mongodb";
 import { Payment } from "@/models/AnalyticsModels";
 import { User } from "@/models/CoreModels";
 
+const razorpayKeyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+const razorpaySecret = process.env.RAZORPAY_KEY_SECRET;
+
+if (!razorpayKeyId || !razorpaySecret) {
+  throw new Error("Razorpay credentials are not configured on the server.");
+}
+
 const razorpay = new Razorpay({
-  key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID as string,
-  key_secret: process.env.RAZORPAY_KEY_SECRET as string,
+  key_id: razorpayKeyId as string,
+  key_secret: razorpaySecret as string,
 });
 
 export async function POST(req: Request) {

@@ -10,6 +10,7 @@ import { COURSE_DETAILS, getDefaultCourseDetail } from "@/data/courseDetails";
 import { CoursePlayer } from "@/components/courses/CoursePlayer";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 
 declare global { interface Window { Razorpay: new (options: object) => { open: () => void }; } }
 
@@ -18,6 +19,7 @@ interface CourseDetailClientProps { courseId: string; }
 export function CourseDetailClient({ courseId }: CourseDetailClientProps) {
   const course = COURSES.find((c) => c.id === courseId);
   const searchParams = useSearchParams();
+  const { isSignedIn } = useAuth();
   const [hasPaid, setHasPaid] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "roadmap" | "learn">(
     searchParams.get("success") === "true" ? "learn" : "overview"
@@ -61,6 +63,11 @@ export function CourseDetailClient({ courseId }: CourseDetailClientProps) {
   };
 
   const handlePayment = async () => {
+    if (!isSignedIn) {
+      alert("Please sign in to complete payment.");
+      return;
+    }
+
     setPayLoading(true);
     try {
       const isLoaded = await loadRazorpayScript();
@@ -71,6 +78,8 @@ export function CourseDetailClient({ courseId }: CourseDetailClientProps) {
 
       const res = await fetch("/api/razorpay/create-order", {
         method: "POST",
+        credentials: "include",
+        cache: "no-store",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           amount: priceNum, 
@@ -82,8 +91,11 @@ export function CourseDetailClient({ courseId }: CourseDetailClientProps) {
       const order = await res.json();
       if (!res.ok) throw new Error(order.details || order.error || "Failed to create order");
 
+      const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      if (!razorpayKey) throw new Error("Razorpay public key is not configured.");
+
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        key: razorpayKey,
         amount: order.amount,
         currency: "INR",
         name: "Startup India Technologies",
@@ -101,7 +113,7 @@ export function CourseDetailClient({ courseId }: CourseDetailClientProps) {
       rzp.open();
     } catch (error: any) {
       console.error(error);
-      alert(`Payment Error: ${error.message}`);
+      alert(`Payment Error: ${error.message || "Please check your connection and try again."}`);
     } finally {
       setPayLoading(false);
     }

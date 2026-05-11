@@ -90,6 +90,8 @@ export default function Home() {
     try {
       const response = await fetch("/api/razorpay/create-order", {
         method: "POST",
+        credentials: "include",
+        cache: "no-store",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount, itemType: 'Course', itemId: course.id }),
       });
@@ -97,13 +99,15 @@ export default function Home() {
       const orderData = await response.json();
       if (!response.ok) throw new Error(orderData.details || orderData.error);
 
+      const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      if (!razorpayKey) throw new Error("Razorpay public key is not configured.");
+
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        key: razorpayKey,
         amount: orderData.amount,
         currency: orderData.currency,
         name: "Startup India 2026",
         description: `Enrollment for ${course.title}`,
-        order_id: orderData.id,
         handler: function (response: any) {
           window.location.href = `/courses/${course.id}?success=true`;
         },
