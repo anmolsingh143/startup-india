@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@clerk/nextjs";
 import { 
   Clock, 
   GraduationCap, 
@@ -24,6 +25,7 @@ import { useUser } from "@clerk/nextjs";
 
 export function InternshipList({ internships }: { internships: any[] }) {
   const { user } = useUser();
+  const { isSignedIn } = useAuth();
   const [selectedInternship, setSelectedInternship] = useState<any>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
@@ -37,10 +39,17 @@ export function InternshipList({ internships }: { internships: any[] }) {
   };
 
   const initiatePayment = async () => {
+    if (!isSignedIn) {
+      alert("Please sign in to complete payment.");
+      return;
+    }
+
     setIsPaymentLoading(true);
     try {
       const res = await fetch("/api/razorpay/create-order", {
         method: "POST",
+        credentials: "include",
+        cache: "no-store",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           amount: 1999, 
@@ -50,7 +59,7 @@ export function InternshipList({ internships }: { internships: any[] }) {
       });
       
       const orderData = await res.json();
-      if (!res.ok) throw new Error(orderData.error);
+      if (!res.ok) throw new Error(orderData.details || orderData.error || "Failed to create order");
 
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
@@ -65,6 +74,8 @@ export function InternshipList({ internships }: { internships: any[] }) {
           try {
             const verifyRes = await fetch("/api/razorpay/verify-payment", {
               method: "POST",
+              credentials: "include",
+              cache: "no-store",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 razorpay: response,
@@ -95,9 +106,9 @@ export function InternshipList({ internships }: { internships: any[] }) {
 
       const rzp = new (window as any).Razorpay(options);
       rzp.open();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Failed to initialize payment.");
+      alert(`Payment Error: ${error.message || "Please check your connection and try again."}`);
     } finally {
       setIsPaymentLoading(false);
     }
