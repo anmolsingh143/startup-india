@@ -6,14 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { BrainCircuit, FileText, Compass, Loader2, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import { BrainCircuit, FileText, Compass, Loader2, Sparkles, CheckCircle2, AlertCircle, Linkedin } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function AiHubPage() {
-  const [activeTab, setActiveTab] = useState<'resume' | 'roadmap'>('resume');
+  const { user } = useUser();
+  const [activeTab, setActiveTab] = useState<'resume' | 'roadmap' | 'profile'>('resume');
   
   // Resume Analyzer State
   const [resumeText, setResumeText] = useState("");
@@ -26,6 +27,18 @@ export default function AiHubPage() {
   const [targetRole, setTargetRole] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [roadmapResult, setRoadmapResult] = useState<any>(null);
+
+  // LinkedIn Profile Builder State
+  const [profileCurrentRole, setProfileCurrentRole] = useState("");
+  const [profileYearsExperience, setProfileYearsExperience] = useState("");
+  const [profileSkills, setProfileSkills] = useState("");
+  const [profileTargetRole, setProfileTargetRole] = useState("");
+  const [profileSummary, setProfileSummary] = useState("");
+  const [profileLinkedinUrl, setProfileLinkedinUrl] = useState("");
+  const [isGeneratingProfile, setIsGeneratingProfile] = useState(false);
+  const [profileResult, setProfileResult] = useState<any>(null);
+  const [profileSuccessMessage, setProfileSuccessMessage] = useState("");
+  const [profileErrorMessage, setProfileErrorMessage] = useState("");
 
   const handleAnalyzeResume = async () => {
     if (!resumeText) return;
@@ -49,7 +62,7 @@ export default function AiHubPage() {
     if (!currentSkills || !targetRole) return;
     setIsGenerating(true);
     try {
-      const skillsArray = currentSkills.split(',').map(s => s.trim());
+      const skillsArray = currentSkills.split(',').map(s => s.trim()).filter(Boolean);
       const res = await fetch('/api/ai/roadmap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -64,6 +77,41 @@ export default function AiHubPage() {
     }
   };
 
+  const handleGenerateProfile = async () => {
+    if (!profileCurrentRole || !profileSkills || !profileTargetRole) return;
+    setProfileSuccessMessage("");
+    setProfileErrorMessage("");
+    setIsGeneratingProfile(true);
+    try {
+      const skillsArray = profileSkills.split(',').map(s => s.trim()).filter(Boolean);
+      const res = await fetch('/api/ai/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
+          currentRole: profileCurrentRole,
+          yearsExperience: profileYearsExperience,
+          skills: skillsArray,
+          targetRole: profileTargetRole,
+          summary: profileSummary,
+          linkedinProfileUrl: profileLinkedinUrl
+        })
+      });
+      const data = await res.json();
+      if (res.ok && !data.error) {
+        setProfileResult(data);
+        setProfileSuccessMessage('Profile generated successfully and saved to your dashboard.');
+      } else {
+        setProfileErrorMessage(data.error || 'Unable to generate your profile at this time.');
+      }
+    } catch (error) {
+      console.error(error);
+      setProfileErrorMessage('There was an error generating your profile. Please try again.');
+    } finally {
+      setIsGeneratingProfile(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col relative selection:bg-primary/30">
       {/* Background Gradients */}
@@ -72,9 +120,12 @@ export default function AiHubPage() {
       {/* Navigation Bar */}
       <nav className="relative z-50 border-b border-border/40 bg-background/60 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 xl:px-0 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-6">
             <Link href="/dashboard">
                <span className="font-space-grotesk font-black text-lg tracking-tight hover:text-primary transition-colors">← Dashboard</span>
+            </Link>
+            <Link href="/profile" className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors">
+              View Profile
             </Link>
           </div>
           <div className="flex items-center gap-3">
@@ -113,6 +164,13 @@ export default function AiHubPage() {
             className={`h-12 px-8 rounded-full font-bold ${activeTab === 'roadmap' ? 'shadow-lg shadow-primary/20' : ''}`}
           >
             <Compass className="w-5 h-5 mr-2" /> Career Roadmap
+          </Button>
+          <Button 
+            variant={activeTab === 'profile' ? 'default' : 'outline'} 
+            onClick={() => setActiveTab('profile')}
+            className={`h-12 px-8 rounded-full font-bold ${activeTab === 'profile' ? 'shadow-lg shadow-primary/20' : ''}`}
+          >
+            <Linkedin className="w-5 h-5 mr-2" /> LinkedIn Profile
           </Button>
         </div>
 
@@ -212,6 +270,153 @@ export default function AiHubPage() {
           )}
 
           {/* Roadmap Generator Tab */}
+          {activeTab === 'profile' && (
+            <motion.div
+              key="profile"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+            >
+              <Card className="bg-card border-border shadow-sm">
+                <CardHeader>
+                  <CardTitle>LinkedIn Profile Builder</CardTitle>
+                  <CardDescription>Generate a polished professional headline, summary, and experience highlights for your LinkedIn profile.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <label className="text-sm font-semibold mb-2 block">Your Current Role</label>
+                    <Input
+                      placeholder="e.g. Software Developer"
+                      value={profileCurrentRole}
+                      onChange={(e) => setProfileCurrentRole(e.target.value)}
+                      className="bg-muted/50 border-border"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold mb-2 block">Years of Experience</label>
+                    <Input
+                      placeholder="e.g. 2 years"
+                      value={profileYearsExperience}
+                      onChange={(e) => setProfileYearsExperience(e.target.value)}
+                      className="bg-muted/50 border-border"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold mb-2 block">Key Skills</label>
+                    <Input
+                      placeholder="e.g. React, TypeScript, Node.js"
+                      value={profileSkills}
+                      onChange={(e) => setProfileSkills(e.target.value)}
+                      className="bg-muted/50 border-border"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Separate skills with commas.</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold mb-2 block">Target Role</label>
+                    <Input
+                      placeholder="e.g. Frontend Engineer"
+                      value={profileTargetRole}
+                      onChange={(e) => setProfileTargetRole(e.target.value)}
+                      className="bg-muted/50 border-border"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold mb-2 block">Professional Summary or Current Focus</label>
+                    <Textarea
+                      placeholder="Briefly describe your recent achievements or what you're targeting next."
+                      value={profileSummary}
+                      onChange={(e) => setProfileSummary(e.target.value)}
+                      className="min-h-[140px] bg-muted/50 border-border resize-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold mb-2 block">LinkedIn Profile URL (Optional)</label>
+                    <Input
+                      placeholder="https://linkedin.com/in/yourname"
+                      value={profileLinkedinUrl}
+                      onChange={(e) => setProfileLinkedinUrl(e.target.value)}
+                      className="bg-muted/50 border-border"
+                    />
+                  </div>
+                  {profileSuccessMessage && (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      {profileSuccessMessage}
+                    </div>
+                  )}
+                  {profileErrorMessage && (
+                    <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      {profileErrorMessage}
+                    </div>
+                  )}
+                  <Button
+                    className="w-full h-12 font-bold"
+                    onClick={handleGenerateProfile}
+                    disabled={isGeneratingProfile || !profileCurrentRole || !profileSkills || !profileTargetRole}
+                  >
+                    {isGeneratingProfile ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Generating...</> : <><Linkedin className="w-5 h-5 mr-2" /> Build Profile</>}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-card border-border shadow-sm flex flex-col">
+                <CardHeader>
+                  <CardTitle>Generated LinkedIn Profile</CardTitle>
+                  <CardDescription>Your new professional summary, headline, and skills section.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                  {profileResult ? (
+                    <div className="space-y-6">
+                      <div className="space-y-3">
+                        <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Headline</p>
+                        <p className="text-lg font-semibold text-foreground">{profileResult.headline}</p>
+                      </div>
+                      <div className="space-y-3">
+                        <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">LinkedIn Headline</p>
+                        <p className="text-lg font-semibold text-foreground">{profileResult.linkedinHeadline}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground mb-2">LinkedIn Summary</p>
+                        <p className="text-sm text-muted-foreground whitespace-pre-line">{profileResult.linkedinSummary}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground mb-2">Professional Summary</p>
+                        <p className="text-sm text-muted-foreground whitespace-pre-line">{profileResult.professionalSummary}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground mb-2">Experience Highlights</p>
+                        <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+                          {profileResult.experienceHighlights?.map((item: string, index: number) => (
+                            <li key={index}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground mb-2">Skills</p>
+                        <div className="flex flex-wrap gap-2">
+                          {profileResult.skills?.map((skill: string, idx: number) => (
+                            <Badge key={idx} className="bg-background text-sm border-border">{skill}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground mb-2">Career Goal</p>
+                        <p className="text-sm text-muted-foreground">{profileResult.careerGoal}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50 py-20">
+                      <Linkedin className="w-16 h-16 mb-4" />
+                      <p>Build your LinkedIn profile to see the results here.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
           {activeTab === 'roadmap' && (
             <motion.div
               key="roadmap"

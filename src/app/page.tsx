@@ -182,6 +182,11 @@ export default function Home() {
             )}
             {isLoaded && isSignedIn && (
               <div className="flex items-center gap-3">
+                <Link href="/profile" className="hidden md:inline-flex">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary font-bold text-xs h-8">
+                    My Profile
+                  </Button>
+                </Link>
                 <UserButton appearance={{ elements: { avatarBox: "w-10 h-10 border-2 border-primary/20" } }} />
                 {isAdmin && (
                   <>

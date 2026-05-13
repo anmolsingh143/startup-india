@@ -55,9 +55,13 @@ export async function POST(req: Request) {
 
   if (eventType === 'user.created' || eventType === 'user.updated') {
     const { id, email_addresses, first_name, last_name, image_url, public_metadata } = evt.data;
-    
     const email = email_addresses[0]?.email_address;
-    const role = public_metadata?.role || 'Student'; // Default to student
+    let role = public_metadata?.role;
+    if (typeof role !== "string" || !["admin", "student"].includes(role.toLowerCase())) {
+      role = "student";
+    } else {
+      role = role.toLowerCase();
+    }
 
     try {
       await User.findOneAndUpdate(

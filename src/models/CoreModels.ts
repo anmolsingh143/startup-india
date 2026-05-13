@@ -11,6 +11,14 @@ export interface IUser extends Document {
   role: 'Student' | 'Admin' | 'Employee' | 'Mentor' | 'College Partner';
   profileImage?: string;
   phone?: string;
+  headline?: string;
+  linkedinHeadline?: string;
+  linkedinSummary?: string;
+  professionalSummary?: string;
+  experienceHighlights?: string[];
+  careerGoals?: string[];
+  profileSkills?: string[];
+  linkedinProfileUrl?: string;
   skills: string[];
   education: {
     college: string;
@@ -32,6 +40,14 @@ const UserSchema = new Schema<IUser>({
   role: { type: String, enum: ['Student', 'Admin', 'Employee', 'Mentor', 'College Partner'], default: 'Student' },
   profileImage: String,
   phone: String,
+  headline: String,
+  linkedinHeadline: String,
+  linkedinSummary: String,
+  professionalSummary: String,
+  experienceHighlights: [String],
+  careerGoals: [String],
+  profileSkills: [String],
+  linkedinProfileUrl: String,
   skills: [String],
   education: [{ college: String, degree: String, graduationYear: Number }],
   walletBalance: { type: Number, default: 0 },

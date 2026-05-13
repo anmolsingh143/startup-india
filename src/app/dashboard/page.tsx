@@ -4,6 +4,7 @@ import dbConnect from "@/lib/mongodb";
 import { User, Application } from "@/models/CoreModels";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { BrainCircuit, Briefcase, GraduationCap, Wallet, Star } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserButton } from "@clerk/nextjs";
@@ -19,24 +20,29 @@ export default async function DashboardPage() {
 
   await dbConnect();
 
-  // 1. Fetch or create user in MongoDB
+
+  // 1. Always use Clerk publicMetadata for role
   let user = await User.findOne({ clerkId: userId });
-  
+  const role = (clerkUser.publicMetadata?.role || "student").toLowerCase();
+
   if (!user) {
     user = await User.create({
       clerkId: userId,
       email: clerkUser.emailAddresses[0]?.emailAddress,
       firstName: clerkUser.firstName || "Student",
       lastName: clerkUser.lastName || "",
-      role: clerkUser.publicMetadata?.role || "Student",
+      role,
       profileImage: clerkUser.imageUrl,
     });
+  } else if (user.role !== role) {
+    // Sync role if changed in Clerk
+    user.role = role;
+    await user.save();
   }
 
-  // 2. Security: If user is an employee, they should not be here
-  const normalizedRole = user.role.toLowerCase();
-  if (normalizedRole === "admin" || normalizedRole === "employee") {
-    redirect("/admin");
+  // Only allow students
+  if (role !== "student") {
+    redirect("/admin/dashboard");
   }
 
   // Fetch user's active applications
@@ -58,6 +64,7 @@ export default async function DashboardPage() {
             <span className="font-space-grotesk font-black text-lg tracking-tight">STUDENT DASHBOARD</span>
           </div>
           <div className="flex items-center gap-6 text-sm font-semibold text-muted-foreground">
+            <Link href="/profile" className="hover:text-primary transition-colors">My Profile</Link>
             <Link href="/internships" className="hover:text-primary transition-colors">Internships</Link>
             <Link href="/courses" className="hover:text-primary transition-colors">Courses</Link>
           </div>
@@ -78,6 +85,52 @@ export default async function DashboardPage() {
             <p className="text-muted-foreground mt-2">Here's your learning and career progress overview.</p>
           </div>
           <Badge className="bg-primary text-primary-foreground font-bold px-4 py-2 text-sm uppercase tracking-wider">{user.role}</Badge>
+        </div>
+
+        {/* Profile Builder CTA */}
+        <div className="grid gap-4 md:grid-cols-[1.6fr_1fr]">
+          <Card className="bg-card border-border p-6 shadow-sm">
+            <CardHeader>
+              <CardTitle>{user.headline ? 'Your Professional Profile' : 'Build Your LinkedIn-ready Profile'}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {user.headline ? (
+                <>
+                  <p className="text-lg font-semibold text-foreground">{user.headline}</p>
+                  {user.linkedinSummary ? (
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{user.linkedinSummary}</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Your AI-generated LinkedIn profile summary is ready.</p>
+                  )}
+                  <Link href="/profile" className="inline-block mt-4">
+                    <Button variant="default" size="sm">View Full Profile</Button>
+                  </Link>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Generate a professional profile summary, headline, and experience highlights powered by Gemini AI. Use this to make your LinkedIn profile stand out.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-border p-6 shadow-sm flex flex-col justify-between">
+            <div>
+              <CardHeader>
+                <CardTitle>Need a polished profile?</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">Create a data-driven, recruiter-friendly LinkedIn summary that highlights your skills, experience, and goals.</p>
+              </CardContent>
+            </div>
+            <div className="mt-4 flex flex-col gap-2">
+              <Link href="/dashboard/ai">
+                <Button className="w-full">Open AI Career Hub</Button>
+              </Link>
+              <Link href="/profile/edit">
+                <Button variant="outline" className="w-full">Edit Profile Manually</Button>
+              </Link>
+            </div>
+          </Card>
         </div>
 
         {/* Stats Grid */}

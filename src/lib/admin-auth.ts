@@ -21,7 +21,7 @@ export async function getAdminContext() {
     role,
     isAdmin: Boolean(
       userId &&
-        (role === "admin" || role === "employee" || adminUserIds.includes(userId))
+        (role === "admin" || adminUserIds.includes(userId))
     ),
   };
 }

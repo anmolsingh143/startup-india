@@ -49,7 +49,10 @@ export default async function RecruiterDashboard() {
             </Link>
             <span className="font-space-grotesk font-black text-lg">RECRUITER HUB</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-6">
+            <Link href="/profile" className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors">
+              My Profile
+            </Link>
             <ThemeToggle />
             <UserButton />
           </div>

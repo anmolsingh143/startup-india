@@ -155,6 +155,61 @@ export async function generateCareerRoadmap(currentSkills: string[], targetRole:
   }
 }
 
+export async function generateLinkedInProfile(input: {
+  fullName?: string;
+  currentRole: string;
+  yearsExperience?: string;
+  skills: string[];
+  targetRole: string;
+  summary?: string;
+  linkedinProfileUrl?: string;
+}) {
+  try {
+    const model = getGeminiModel();
+    const prompt = `
+      You are an expert career coach and LinkedIn profile writer for early career professionals.
+      Given the user's current role, experience, skills, and target role, generate a powerful LinkedIn-ready profile summary.
+      Use concise language, strong action verbs, and highlight career goals.
+      Return only a valid JSON object with this exact structure:
+      {
+        "headline": "string",
+        "linkedinHeadline": "string",
+        "linkedinSummary": "string",
+        "professionalSummary": "string",
+        "experienceHighlights": string[],
+        "skills": string[],
+        "careerGoal": "string"
+      }
+
+      User Context:
+      Full Name: ${input.fullName || 'Unknown'}
+      Current Role: ${input.currentRole}
+      Years of Experience: ${input.yearsExperience || 'Not specified'}
+      Skills: ${input.skills.join(', ')}
+      Target Role: ${input.targetRole}
+      Summary: ${input.summary || 'No additional summary provided'}
+      LinkedIn Profile URL: ${input.linkedinProfileUrl || 'Not provided'}
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const responseText = response.text();
+
+    return parseJsonResponse<{
+      headline: string;
+      linkedinHeadline: string;
+      linkedinSummary: string;
+      professionalSummary: string;
+      experienceHighlights: string[];
+      skills: string[];
+      careerGoal: string;
+    }>(responseText);
+  } catch (error) {
+    console.error('Error in generateLinkedInProfile:', error);
+    throw new Error('Failed to generate LinkedIn profile');
+  }
+}
+
 /**
  * Generates 5 AI quiz questions for a given course topic
  */
